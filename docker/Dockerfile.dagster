@@ -1,0 +1,54 @@
+# Start with Python base image directly (to avoid dependency issues)
+FROM python:3.10-slim
+
+# Set working directory
+WORKDIR /opt/dagster
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    git \
+    procps && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create app directory and Dagster home
+RUN mkdir -p /opt/dagster/app /opt/dagster/dagster_home
+
+# Set Dagster home environment variable
+ENV DAGSTER_HOME=/opt/dagster/dagster_home
+
+# Install specific versions of packages directly (no requirements file)
+RUN pip install --no-cache-dir \
+    dagster==1.6.1 \
+    dagster-webserver==1.6.1 \
+    dagster-postgres \
+    dagster-mlflow \
+    dagit \
+    psycopg2-binary==2.9.9
+
+
+# Verify packages are installed correctly
+RUN pip list | grep dagster
+
+# Copy Dagster instance config
+COPY dagster.yaml /opt/dagster/dagster_home/dagster.yaml
+RUN chmod +r /opt/dagster/dagster_home/dagster.yaml
+
+
+COPY workspace.yaml /opt/dagster/app/workspace.yaml
+COPY ml_pipeline/ /opt/dagster/app/ml_pipeline/
+RUN chmod +r /opt/dagster/app/workspace.yaml
+
+RUN chmod +r /opt/dagster/app/workspace.yaml
+
+# Set permissions
+RUN chmod -R 777 /opt/dagster/dagster_home
+
+# Create working directory for the application code
+WORKDIR /opt/dagster/app
+
+# Default command (will be overridden in docker-compose)
+CMD ["dagster", "dev"]

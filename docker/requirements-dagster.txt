@@ -1,0 +1,13 @@
+
+# Dagster for workflow orchestration
+# Dagster core
+dagster==1.6.1
+dagster-webserver==1.6.1
+dagit==1.6.1
+
+# Dagster integrations
+dagster-postgres
+dagster-mlflow
+
+# Database adapter
+psycopg2-binary==2.9.9

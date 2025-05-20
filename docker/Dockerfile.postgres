@@ -1,0 +1,17 @@
+# docker/postgres/Dockerfile
+FROM postgres:14 as builder
+
+# First stage creates the initialization scripts
+RUN mkdir -p /docker-entrypoint-initdb.d
+COPY init-db.sh /docker-entrypoint-initdb.d/
+RUN chmod +x /docker-entrypoint-initdb.d/init-db.sh
+
+FROM postgres:14
+
+# Copy initialization from builder
+COPY --from=builder /docker-entrypoint-initdb.d /docker-entrypoint-initdb.d
+
+# Configuration
+ENV POSTGRES_USER=postgres
+ENV POSTGRES_PASSWORD=admin_password
+ENV POSTGRES_DB=postgres

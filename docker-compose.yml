@@ -1,0 +1,178 @@
+services:
+  # Base evn for all prosses that uses Python
+  spotify_base:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.spotify_base
+    image: spotify_base:latest
+    healthcheck:
+      test: ["CMD", "python", "--version"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - ml-network
+    command: ["tail", "-f", "/dev/null"]
+    container_name: spotify_base
+
+  # PostgreSQL database for MLflow tracking
+  # Shared PostgreSQL database for both Dagster and MLflow
+  postgres:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.postgres
+    image: postgres:14
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin_password
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready  -U postgres -d postgres "]
+      interval: 5s
+      retries: 5
+      start_period: 5s
+      timeout: 5s
+    networks:
+      - ml-network
+    container_name: postgres
+
+  # MLflow tracking server
+  mlflow:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.mlflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      MLFLOW_TRACKING_URI: "postgresql://mlflow_user:mlflow_password@postgres:5432/mlflow"
+      MLFLOW_DEFAULT_ARTIFACT_ROOT: "/mlflow/artifacts"
+    volumes:
+      - mlflow_data:/mlflow
+    ports:
+      - "5000:5000"
+    networks:
+      - ml-network
+    command: >
+      mlflow server 
+      --backend-store-uri postgresql://mlflow_user:mlflow_password@postgres:5432/mlflow 
+      --default-artifact-root /mlflow/artifacts 
+      --host 0.0.0.0
+    container_name: mlflow-server
+
+  # LakeFS for data versioning
+  # lakefs:
+  #   image: treeverse/lakefs:latest
+  #   container_name: lakefs-server
+  #   ports:
+  #     - "8000:8000"
+  #   environment:
+  #     - LAKEFS_DATABASE_TYPE=local
+  #     - LAKEFS_BLOCKSTORE_TYPE=local
+  #     - LAKEFS_AUTH_ENCRYPT_SECRET_KEY=some-random-secret-that-should-be-kept-secret
+  #   volumes:
+  #     - lakefs_data:/lakefs
+  #   networks:
+  #     - ml-network
+
+  # Dagster daemon for scheduling and sensor execution
+  dagster-daemon:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.dagster
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+    environment:
+      DAGSTER_POSTGRES_URL: "postgresql://dagster:dagster_password@postgres:5432/dagster"
+      DAGSTER_HOME: "/opt/dagster/dagster_home"
+    
+    volumes:  
+      - ./ml_pipeline:/opt/dagster/app/ml_pipeline
+      - dagster_data:/opt/dagster/dagster_home
+      - ./ml_pipeline:/opt/dagster/app/ml_pipeline
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "dagster-daemon"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    command: >
+      dagster-daemon run
+    container_name: dagster-daemon
+    networks:
+      - ml-network
+  
+  # Dagster webserver
+  dagster-webserver:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.dagster
+    depends_on:
+      dagster-daemon:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+    ports:
+      - "3000:3000"
+    environment:
+      DAGSTER_POSTGRES_URL: "postgresql://dagster:dagster_password@postgres:5432/dagster"
+      DAGSTER_HOME: "/opt/dagster/dagster_home"
+    volumes:  
+      - ./ml_pipeline:/opt/dagster/app/ml_pipeline
+      - ./workspace.yaml:/opt/dagster/app/workspace.yaml
+      - ./dagster.yaml:/opt/dagster/dagster_home/dagster.yaml
+    networks:
+      - ml-network
+    command: ["dagit", "-h", "0.0.0.0", "-p", "3000"]
+    container_name: dagster-webserver
+
+
+  # # API service 
+  # api:
+  #   build:
+  #     context: .
+  #     dockerfile: ./docker/Dockerfile.api
+  #   container_name: spotify-api
+  #   ports:
+  #     - "8080:8080"
+  #   depends_on:
+  #     - mlflow
+  #   environment:
+  #     - MLFLOW_TRACKING_URI=http://mlflow:5000
+  #   networks:
+  #     - ml-network
+  #   command: >
+  #     uvicorn ml_pipeline.api.main:app --host 0.0.0.0 --port 8080 --reload
+
+  # # Frontend UI
+  # frontend:
+  #   build:
+  #     context: .
+  #     dockerfile: ./docker/Dockerfile.frontend
+  #   container_name: spotify-frontend
+  #   ports:
+  #     - "8501:8501"
+  #   depends_on:
+  #     - api
+  #   environment:
+  #     - API_URL=http://api:8080
+  #   networks:
+  #     - ml-network
+  #   command: >
+  #     streamlit run ui/app.py
+
+networks:
+  ml-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  mlflow_data:
+  # lakefs_data:
+  dagster_data:

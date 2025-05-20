@@ -1,0 +1,25 @@
+# Core libraries
+numpy==1.26.2
+pandas==2.1.3
+scikit-learn==1.3.2
+matplotlib==3.8.2
+seaborn==0.13.0
+
+
+
+# LakeFS for data versioning
+lakefs-spec==0.1.4
+
+
+# Quality tools
+ruff==0.1.6
+pyright==1.1.338
+pytest==7.4.3
+pytest-cov==4.1.0
+
+# Kaggle for downloading datasets
+kaggle==1.5.16
+
+# Additional useful libraries
+tqdm==4.66.1
+joblib==1.3.2

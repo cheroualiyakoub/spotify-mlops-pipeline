@@ -1,0 +1,6 @@
+load_from:
+  - python_file:
+      relative_path: "ml_pipeline/your_pipeline_file.py"
+      working_directory: /opt/dagster/app
+      location_name: "ml_pipeline"
+      attribute: "my_repo" 
