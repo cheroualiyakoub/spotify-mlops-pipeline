@@ -59,25 +59,36 @@ services:
       - ml-network
     command: >
       mlflow server 
-      --backend-store-uri postgresql://mlflow_user:mlflow_password@postgres:5432/mlflow 
+      --backend-store-uri postgresql://mlflow_user:mlflow_password@postgres:5432/mlflow?sslmode=disable
       --default-artifact-root /mlflow/artifacts 
       --host 0.0.0.0
     container_name: mlflow-server
 
-  # LakeFS for data versioning
-  # lakefs:
-  #   image: treeverse/lakefs:latest
-  #   container_name: lakefs-server
-  #   ports:
-  #     - "8000:8000"
-  #   environment:
-  #     - LAKEFS_DATABASE_TYPE=local
-  #     - LAKEFS_BLOCKSTORE_TYPE=local
-  #     - LAKEFS_AUTH_ENCRYPT_SECRET_KEY=some-random-secret-that-should-be-kept-secret
-  #   volumes:
-  #     - lakefs_data:/lakefs
-  #   networks:
-  #     - ml-network
+  # LakeFS for data versioning and management
+  lakefs:
+    image: treeverse/lakefs:latest
+    container_name: lakefs
+    ports:
+      - "8000:8000"
+    environment:
+      - LAKEFS_DATABASE_TYPE=postgres
+      - LAKEFS_DATABASE_POSTGRES_CONNECTION_STRING=postgres://lakefs_user:lakefs_password@postgres:5432/lakefs?sslmode=disable
+      - LAKEFS_BLOCKSTORE_TYPE=local
+      - LAKEFS_AUTH_ENCRYPT_SECRET_KEY=${LAKEFS_AUTH_ENCRYPT_SECRET_KEY}
+      - LAKEFS_SETUP_ADMIN_ACCESS_KEY_ID=${LAKEFS_ADMIN_ACCESS_KEY}
+      - LAKEFS_SETUP_ADMIN_SECRET_ACCESS_KEY=${LAKEFS_ADMIN_SECRET_KEY}
+    volumes:
+      - lakefs_data:/lakefs
+    networks:
+      - ml-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/_health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   # Dagster daemon for scheduling and sensor execution
   dagster-daemon:
@@ -89,9 +100,11 @@ services:
         condition: service_healthy
     restart: on-failure
     environment:
-      DAGSTER_POSTGRES_URL: "postgresql://dagster:dagster_password@postgres:5432/dagster"
+      DAGSTER_POSTGRES_URL: "postgresql://dagster:dagster_password@postgres:5432/dagster?sslmode=disable"
       DAGSTER_HOME: "/opt/dagster/dagster_home"
-    
+      LAKEFS_ACCESS_KEY_ID: ${LAKEFS_ADMIN_ACCESS_KEY}
+      LAKEFS_SECRET_ACCESS_KEY: ${LAKEFS_ADMIN_SECRET_KEY}
+      LAKEFS_ENDPOINT: "http://lakefs:8000"
     volumes:  
       - ./ml_pipeline:/opt/dagster/app/ml_pipeline
       - dagster_data:/opt/dagster/dagster_home
@@ -121,11 +134,14 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DAGSTER_POSTGRES_URL: "postgresql://dagster:dagster_password@postgres:5432/dagster"
+      DAGSTER_POSTGRES_URL: "postgresql://dagster:dagster_password@postgres:5432/dagster?sslmode=disable"
       DAGSTER_HOME: "/opt/dagster/dagster_home"
       DAGSTER_WEBSERVER_RELOAD: "true"
       DAGSTER_WEBSERVER_RELOAD_INTERVAL: "1"
       DAGSTER_WEBSERVER_RELOAD_DIRS: "/opt/dagster/app/ml_pipeline"
+      LAKEFS_ACCESS_KEY_ID: ${LAKEFS_ADMIN_ACCESS_KEY}
+      LAKEFS_SECRET_ACCESS_KEY: ${LAKEFS_ADMIN_SECRET_KEY}
+      LAKEFS_ENDPOINT: "http://lakefs:8000"
     volumes:  
       - ./ml_pipeline:/opt/dagster/app/ml_pipeline
       - ./workspace.yaml:/opt/dagster/app/workspace.yaml
@@ -176,5 +192,5 @@ networks:
 volumes:
   postgres_data:
   mlflow_data:
-  # lakefs_data:
+  lakefs_data:
   dagster_data:
