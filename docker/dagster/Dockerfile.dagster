@@ -20,28 +20,20 @@ RUN mkdir -p /opt/dagster/app /opt/dagster/dagster_home
 # Set Dagster home environment variable
 ENV DAGSTER_HOME=/opt/dagster/dagster_home
 
-# Install specific versions of packages directly (no requirements file)
-RUN pip install --no-cache-dir \
-    dagster==1.6.1 \
-    dagster-webserver==1.6.1 \
-    dagster-postgres \
-    dagster-mlflow \
-    dagit \
-    psycopg2-binary==2.9.9
-
+# Copy and install requirements
+COPY docker/requirements/requirements-dagster.txt .
+RUN pip install --no-cache-dir -r requirements-dagster.txt
 
 # Verify packages are installed correctly
 RUN pip list | grep dagster
 
 # Copy Dagster instance config
-COPY dagster.yaml /opt/dagster/dagster_home/dagster.yaml
+COPY ./config/local/dagster.yaml /opt/dagster/dagster_home/dagster.yaml
 RUN chmod +r /opt/dagster/dagster_home/dagster.yaml
 
 
-COPY workspace.yaml /opt/dagster/app/workspace.yaml
+COPY ./config/workspace.yaml /opt/dagster/app/workspace.yaml
 COPY ml_pipeline/ /opt/dagster/app/ml_pipeline/
-RUN chmod +r /opt/dagster/app/workspace.yaml
-
 RUN chmod +r /opt/dagster/app/workspace.yaml
 
 # Set permissions
