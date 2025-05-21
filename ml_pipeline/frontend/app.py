@@ -14,7 +14,8 @@ st.write("Predict the popularity of a track based on its audio features")
 
 # Sidebar
 st.sidebar.header("About")
-st.sidebar.write("This app predicts the popularity of a track using machine learning models trained on Spotify data.")
+st.sidebar.write("This app predicts the popularity of a track \
+                using machine learning models trained on Spotify data.")
 
 # Main content
 def main():
@@ -67,7 +68,8 @@ def main():
                 
                 if response.status_code == 200:
                     result = response.json()
-                    st.success(f"Predicted Popularity Score: {result['popularity']:.2f}")
+                    st.success(f"Predicted Popularity Score: \
+                               {result['popularity']:.2f}")
                     st.info(f"Model Version: {result['model_version']}")
                 else:
                     st.error("Error making prediction. Please try again.")
