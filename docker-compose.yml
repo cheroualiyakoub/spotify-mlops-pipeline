@@ -106,7 +106,6 @@ services:
       LAKEFS_SECRET_ACCESS_KEY: ${LAKEFS_ADMIN_SECRET_KEY}
       LAKEFS_ENDPOINT: "http://lakefs:8000"
     volumes:  
-      - ./ml_pipeline:/opt/dagster/app/ml_pipeline
       - dagster_data:/opt/dagster/dagster_home
       - ./ml_pipeline:/opt/dagster/app/ml_pipeline
     healthcheck:
