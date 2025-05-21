@@ -1,0 +1,14 @@
+FROM spotify_base:latest
+
+WORKDIR /app
+
+# Install Streamlit dependencies
+COPY docker/requirements/requirements-streamlit.txt .
+RUN pip install --no-cache-dir -r requirements-streamlit.txt
+
+# Copy the frontend code
+COPY ./ml_pipeline /app/ml_pipeline
+
+EXPOSE 8501
+
+CMD ["streamlit", "run", "ml_pipeline/frontend/app.py"]

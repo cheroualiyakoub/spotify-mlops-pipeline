@@ -57,6 +57,12 @@ services:
       - "5000:5000"
     networks:
       - ml-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     command: >
       mlflow server 
       --backend-store-uri postgresql://mlflow_user:mlflow_password@postgres:5432/mlflow?sslmode=disable
@@ -150,39 +156,50 @@ services:
     command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000"]
     container_name: dagster-webserver
 
-  # # API service 
-  # api:
-  #   build:
-  #     context: .
-  #     dockerfile: ./docker/Dockerfile.api
-  #   container_name: spotify-api
-  #   ports:
-  #     - "8080:8080"
-  #   depends_on:
-  #     - mlflow
-  #   environment:
-  #     - MLFLOW_TRACKING_URI=http://mlflow:5000
-  #   networks:
-  #     - ml-network
-  #   command: >
-  #     uvicorn ml_pipeline.api.main:app --host 0.0.0.0 --port 8080 --reload
+  # API service 
+  api:
+    build:
+      context: .
+      dockerfile: ./docker/api/Dockerfile.api
+    container_name: spotify-api
+    ports:
+      - "8080:8080"
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    volumes:
+      - ./ml_pipeline:/app/ml_pipeline
+    networks:
+      - ml-network
+    command: uvicorn ml_pipeline.api.main:app --host 0.0.0.0 --port 8080 --reload
 
-  # # Frontend UI
-  # frontend:
-  #   build:
-  #     context: .
-  #     dockerfile: ./docker/Dockerfile.frontend
-  #   container_name: spotify-frontend
-  #   ports:
-  #     - "8501:8501"
-  #   depends_on:
-  #     - api
-  #   environment:
-  #     - API_URL=http://api:8080
-  #   networks:
-  #     - ml-network
-  #   command: >
-  #     streamlit run ui/app.py
+  # Frontend UI
+  frontend:
+    build:
+      context: .
+      dockerfile: ./docker/frontend/Dockerfile.frontend
+    container_name: spotify-frontend
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      - API_URL=http://api:8080
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    volumes:
+      - ./ml_pipeline:/app/ml_pipeline
+    networks:
+      - ml-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    command: streamlit run ml_pipeline/frontend/app.py --server.address 0.0.0.0 --server.port 8501
 
 networks:
   ml-network:
