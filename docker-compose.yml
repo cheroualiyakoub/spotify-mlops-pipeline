@@ -123,15 +123,17 @@ services:
     environment:
       DAGSTER_POSTGRES_URL: "postgresql://dagster:dagster_password@postgres:5432/dagster"
       DAGSTER_HOME: "/opt/dagster/dagster_home"
+      DAGSTER_WEBSERVER_RELOAD: "true"
+      DAGSTER_WEBSERVER_RELOAD_INTERVAL: "1"
+      DAGSTER_WEBSERVER_RELOAD_DIRS: "/opt/dagster/app/ml_pipeline"
     volumes:  
       - ./ml_pipeline:/opt/dagster/app/ml_pipeline
       - ./workspace.yaml:/opt/dagster/app/workspace.yaml
       - ./dagster.yaml:/opt/dagster/dagster_home/dagster.yaml
     networks:
       - ml-network
-    command: ["dagit", "-h", "0.0.0.0", "-p", "3000"]
+    command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000"]
     container_name: dagster-webserver
-
 
   # # API service 
   # api:
