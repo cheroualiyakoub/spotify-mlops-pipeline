@@ -7,7 +7,7 @@ COPY docker/requirements/requirements-fastapi.txt .
 RUN pip install --no-cache-dir -r requirements-fastapi.txt
 
 # Copy the API code
-COPY ./ml_pipeline /app/ml_pipeline
+COPY ./ml_pipeline/api /app/ml_pipeline/api
 
 EXPOSE 8080
 

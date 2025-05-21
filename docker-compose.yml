@@ -80,21 +80,27 @@ services:
       - LAKEFS_DATABASE_TYPE=postgres
       - LAKEFS_DATABASE_POSTGRES_CONNECTION_STRING=postgres://lakefs_user:lakefs_password@postgres:5432/lakefs?sslmode=disable
       - LAKEFS_BLOCKSTORE_TYPE=local
+      - LAKEFS_BLOCKSTORE_LOCAL_PATH=/home/lakefs/data
       - LAKEFS_AUTH_ENCRYPT_SECRET_KEY=${LAKEFS_AUTH_ENCRYPT_SECRET_KEY}
-      - LAKEFS_SETUP_ADMIN_ACCESS_KEY_ID=${LAKEFS_ADMIN_ACCESS_KEY}
-      - LAKEFS_SETUP_ADMIN_SECRET_ACCESS_KEY=${LAKEFS_ADMIN_SECRET_KEY}
+      - LAKEFS_ADMIN_ACCESS_KEY_ID=${LAKEFS_ADMIN_ACCESS_KEY}
+      - LAKEFS_ADMIN_SECRET_ACCESS_KEY=${LAKEFS_ADMIN_SECRET_KEY}
+      - LAKEFS_BLOCKSTORE_LOCAL_IMPORT_ENABLED=true
+      - LAKEFS_SETUP_ADMIN_USER=true
+      - LAKEFS_SETUP_ADMIN_NAME=admin
     volumes:
-      - lakefs_data:/lakefs
+      - lakefs_data:/home/lakefs/data
+    user: root
     networks:
       - ml-network
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/_health"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthcheck"]
+      interval: 10s
+      timeout: 5s
       retries: 5
+      start_period: 20s
 
   # Dagster daemon for scheduling and sensor execution
   dagster-daemon:
@@ -201,6 +207,26 @@ services:
       start_period: 10s
     command: streamlit run ml_pipeline/frontend/app.py --server.address 0.0.0.0 --server.port 8501
 
+  # LakeFS setup service
+  lakefs-setup:
+    build:
+      context: .
+      dockerfile: ./docker/lakefs/Dockerfile.lakefs_setup
+    networks:
+      - ml-network
+    environment:
+      - LAKEFS_ENDPOINT=http://lakefs:8000
+      - LAKEFS_ADMIN_ACCESS_KEY=${LAKEFS_ADMIN_ACCESS_KEY}
+      - LAKEFS_ADMIN_SECRET_KEY=${LAKEFS_ADMIN_SECRET_KEY}
+    volumes:
+      - /var/lakefs_setup:/var/lakefs_setup
+    depends_on:
+      lakefs:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
 networks:
   ml-network:
     driver: bridge
@@ -210,3 +236,5 @@ volumes:
   mlflow_data:
   lakefs_data:
   dagster_data:
+  lakefs_setup_done:
+

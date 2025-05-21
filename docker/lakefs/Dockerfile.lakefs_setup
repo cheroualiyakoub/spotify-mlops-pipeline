@@ -1,0 +1,26 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install curl for healthcheck
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Install dependencies
+COPY docker/requirements/requirements-lakefs.txt .
+RUN pip install --no-cache-dir -r requirements-lakefs.txt
+
+# Copy setup script and entrypoint
+COPY docker/lakefs/setup_lakefs.py /app/
+COPY docker/lakefs/entrypoint.sh /entrypoint.sh
+
+# Make entrypoint executable
+RUN chmod +x /entrypoint.sh
+
+# Environment variables for LakeFS connection and setup
+ENV LAKEFS_ENDPOINT=http://lakefs:8000
+ENV PYTHONPATH=/app
+ENV LAKEFS_ADMIN_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
+ENV LAKEFS_ADMIN_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+
+# Use entrypoint script to check if setup has run before
+ENTRYPOINT ["/entrypoint.sh"]
