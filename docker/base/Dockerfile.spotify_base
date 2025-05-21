@@ -14,7 +14,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy requirements file
-COPY docker/requirements-base.txt .
+COPY docker/requirements/requirements-base.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements-base.txt

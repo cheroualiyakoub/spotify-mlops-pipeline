@@ -3,7 +3,7 @@ services:
   spotify_base:
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.spotify_base
+      dockerfile: ./docker/base/Dockerfile.spotify_base
     image: spotify_base:latest
     healthcheck:
       test: ["CMD", "python", "--version"]
@@ -20,7 +20,7 @@ services:
   postgres:
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.postgres
+      dockerfile: ./docker/postgres/Dockerfile.postgres
     image: postgres:14
     environment:
       POSTGRES_USER: postgres
@@ -44,7 +44,7 @@ services:
   mlflow:
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.mlflow
+      dockerfile: ./docker/mlflow/Dockerfile.mlflow
     depends_on:
       postgres:
         condition: service_healthy
@@ -94,7 +94,7 @@ services:
   dagster-daemon:
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.dagster
+      dockerfile: ./docker/dagster/Dockerfile.dagster
     depends_on:
       postgres:
         condition: service_healthy
@@ -125,7 +125,7 @@ services:
   dagster-webserver:
     build:
       context: .
-      dockerfile: ./docker/Dockerfile.dagster
+      dockerfile: ./docker/dagster/Dockerfile.dagster
     depends_on:
       dagster-daemon:
         condition: service_healthy
@@ -144,8 +144,8 @@ services:
       LAKEFS_ENDPOINT: "http://lakefs:8000"
     volumes:  
       - ./ml_pipeline:/opt/dagster/app/ml_pipeline
-      - ./workspace.yaml:/opt/dagster/app/workspace.yaml
-      - ./dagster.yaml:/opt/dagster/dagster_home/dagster.yaml
+      - ./config/workspace.yaml:/opt/dagster/app/workspace.yaml
+      - ./config/local/dagster.yaml:/opt/dagster/dagster_home/dagster.yaml
     networks:
       - ml-network
     command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000"]

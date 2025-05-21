@@ -176,4 +176,7 @@ cython_debug/
 
 *.csv
 
-*.swp
+*.swptemp_key.txt
+
+
+.env

@@ -1,4 +1,3 @@
-
 # MLflow Dockerfile
 FROM spotify_base:latest
 
@@ -14,17 +13,12 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-
-COPY docker/requirements-mlflow.txt .
-
-# Install Python dependencies
+# Copy and install requirements
+COPY docker/requirements/requirements-mlflow.txt .
 RUN pip install --no-cache-dir -r requirements-mlflow.txt
 
-
-# Install MLflow and PostgreSQL dependencies
-RUN pip install --no-cache-dir \
-    psycopg2-binary==2.9.9 
-
+# Install PostgreSQL dependencies
+RUN pip install --no-cache-dir psycopg2-binary==2.9.9
 
 # Create directory for MLflow artifacts
 RUN mkdir -p /mlflow/artifacts
