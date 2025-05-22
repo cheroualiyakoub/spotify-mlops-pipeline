@@ -279,26 +279,26 @@ def main(args):
         logger.error(f"Unexpected error connecting to LakeFS: {str(e)}")
         return 1
         
-    # Check if setup is needed
-    if not check_if_setup_needed(client):
-        logger.info("LakeFS is already set up properly. Exiting.")
-        return 0
+    # # Check if setup is needed
+    # if not check_if_setup_needed(client):
+    #     logger.info("LakeFS is already set up properly. Exiting.")
+    #     return 0
     
-    # Create repository
-    if not create_repository(client):
-        logger.error("Failed to create or access repository. Exiting.")
-        return 1
+    # # Create repository
+    # if not create_repository(client):
+    #     logger.error("Failed to create or access repository. Exiting.")
+    #     return 1
     
-    # Setup branches
-    if not setup_branches(client):
-        logger.error("Failed to create branch structure. Exiting.")
-        return 1
+    # # Setup branches
+    # if not setup_branches(client):
+    #     logger.error("Failed to create branch structure. Exiting.")
+    #     return 1
     
-    # Create directory structure in development branch first
-    logger.info("Creating directory structure in 'development' branch")
-    if not create_directory_structure(client, "development"):
-        logger.error("Failed to create directory structure. Exiting.")
-        return 1
+    # # Create directory structure in development branch first
+    # logger.info("Creating directory structure in 'development' branch")
+    # if not create_directory_structure(client, "development"):
+    #     logger.error("Failed to create directory structure. Exiting.")
+    #     return 1
     
     # Success message
     logger.info(f"""

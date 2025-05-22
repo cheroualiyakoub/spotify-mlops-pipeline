@@ -1,5 +1,5 @@
 # Start with Python base image directly (to avoid dependency issues)
-FROM python:3.10-slim
+FROM spotify_base:latest
 
 # Set working directory
 WORKDIR /opt/dagster

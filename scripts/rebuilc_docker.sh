@@ -13,8 +13,8 @@ docker rm $(docker ps -aq) || true
 echo "Removing all Docker images..."
 docker rmi $(docker images -q) --force || true
 
-echo "Removing all Docker volumes..."
-docker volume rm $(docker volume ls -q) || true
+# echo "Removing all Docker volumes..."
+# docker volume rm $(docker volume ls -q) || true
 
 echo "Pruning unused Docker networks..."
 docker network prune -f || true
