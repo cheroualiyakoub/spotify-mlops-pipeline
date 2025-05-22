@@ -24,21 +24,17 @@ def check_lakefs_connection(client):
         print(f"❌ Failed to connect to LakeFS: {str(e)}")
         return False
 
+
 @resource
-def lakefs_resource():
-    """LakeFS resource for data versioning"""
-    
-    configuration = Configuration(
+def lakefs_client_resource():
+    """For repository/branch management"""
+    config = Configuration(
         host=os.getenv('LAKEFS_ENDPOINT', 'http://lakefs:8000'),
         username=os.getenv('LAKEFS_ACCESS_KEY_ID'),
-        password= os.getenv('LAKEFS_SECRET_ACCESS_KEY'),
+        password=os.getenv('LAKEFS_SECRET_ACCESS_KEY'),
     )
-
-    client = LakeFSClient(configuration=configuration)
-
-    logger = get_dagster_logger()
-    check_lakefs_connection(client)
+    client = LakeFSClient(configuration=config)
     if not check_lakefs_connection(client):
         raise Exception("Failed to connect to LakeFS")
-    logger.info("Connected to LakeFS successfully")
+    get_dagster_logger().info("LakeFS client initialized")
     return client
