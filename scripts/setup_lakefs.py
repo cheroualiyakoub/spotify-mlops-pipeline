@@ -42,14 +42,14 @@ def check_lakefs_connection(client):
 
 LAKEFS_ADMIN_ACCESS_KEY = os.getenv("LAKEFS_ADMIN_ACCESS_KEY")
 LAKEFS_ADMIN_SECRET_KEY = os.getenv("LAKEFS_ADMIN_SECRET_KEY")
-LAKEFS_URL = os.getenv("LAKEFS_URL")
+LAKEFS_ENDPOINT = os.getenv("LAKEFS_ENDPOINT")
 
 if not LAKEFS_ADMIN_ACCESS_KEY or not LAKEFS_ADMIN_SECRET_KEY:
     print("LAKEFS_ADMIN_ACCESS_KEY and LAKEFS_ADMIN_SECRET_KEY must be set in .env file")
     sys.exit(1)
 
 configuration = Configuration(
-    host=LAKEFS_URL,
+    host=LAKEFS_ENDPOINT,
     username=LAKEFS_ADMIN_ACCESS_KEY,
     password=LAKEFS_ADMIN_SECRET_KEY
 )
