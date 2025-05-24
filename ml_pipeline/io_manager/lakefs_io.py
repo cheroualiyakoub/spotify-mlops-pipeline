@@ -1,84 +1,188 @@
-from dagster import IOManager, io_manager
+# Fixed IO Manager Code
+from dagster import IOManager, io_manager, get_dagster_logger
 from lakefs_spec import LakeFSFileSystem
-
-import ml_pipeline.resources.lakefs_client_resource as lakefs_client_resource
-import ml_pipeline.resources.lakefs_spec_resource as lakefs_spec_resource
-import os
 import pandas as pd
-import numpy as np
+from dagster import IOManager, io_manager, ConfigurableResource
+from typing import Optional, Dict, Any
+from dataclasses import dataclass
+import zipfile
+import json
+import pickle
+import io
 
-class LakeFSIOManager(IOManager):
-    def __init__(self, fs, client, repo: str, branch: str = "main"):
-        self.fs = fs  # Use the provided filesystem
-        self.client = client  # Use the provided client
-        self.repo = repo
-        self.branch = branch
+@dataclass
+class LakeFSConfig:
+    """Configuration for LakeFS operations"""
+    repo: str
+    branch: str
+    commit_message: Optional[str] = None
+    auto_commit: bool = False
+    metadata: Optional[Dict[str, Any]] = None
 
-    def _get_path(self, context):
-        return f"{self.repo}/{self.branch}/{'/'.join(context.asset_key.path)}.parquet"
+class DynamicLakeFSIOManager(IOManager):
+    def __init__(self, fs, client, default_repo: str = "spotify-repo", default_branch: str = "main"):
+        self.fs = fs
+        self.client = client
+        self.default_repo = default_repo
+        self.default_branch = default_branch
+
+    def _get_config_from_context(self, context) -> LakeFSConfig:
+        """Get LakeFS config from static metadata + optional runtime overrides"""
+        
+        # Get static config from definition_metadata
+        static_config = {}
+        if hasattr(context, 'definition_metadata') and context.definition_metadata:
+            static_config = context.definition_metadata.get('lakefs_config', {})
+        
+        # Get runtime config from context.metadata (for add_output_metadata overrides)
+        runtime_config = {}
+        if hasattr(context, 'metadata') and context.metadata:
+            runtime_config = context.metadata.get('lakefs_config', {})
+            # If they're identical, no runtime override was setcontent
+            if runtime_config == static_config:
+                runtime_config = {}
+        
+        # Runtime overrides static
+        final_config = {**static_config, **runtime_config}
+        
+        context.log.debug(f"Static config: {static_config}")
+        context.log.debug(f"Runtime config: {runtime_config}")
+        context.log.debug(f"Final config: {final_config}")
+        
+        return LakeFSConfig(
+            repo=final_config.get('repo', self.default_repo),
+            branch=final_config.get('branch', self.default_branch),
+            commit_message=final_config.get('commit_message'),
+            auto_commit=final_config.get('auto_commit', False),
+            metadata=final_config.get('metadata', {})
+        )
 
     def handle_output(self, context, obj):
-        lakefs_path = self._get_path(context)
-        
-        # Enhanced metadata collection
-        metadata = {
-            "lakefs_path": f"lakefs://{lakefs_path}",
-            "file_format": "parquet",
-        }
+        """Simple CSV upload using lakefs_client with IOBase"""
         
         if isinstance(obj, pd.DataFrame):
-            # Add DataFrame-specific metadata
-            metadata.update({
-                "row_count": int(len(obj)), 
-                "column_count": int(len(obj.columns)), 
-                "size_mb": float(obj.memory_usage(deep=True).sum() / (1024 * 1024))
-            })
+            config = self._get_config_from_context(context)
+            file_path = f"{'/'.join(context.asset_key.path)}.csv" 
             
-            # Write with better Parquet settings
-            with self.fs.open(f"lakefs://{lakefs_path}", "wb") as f:
-                obj.to_parquet(
-                    f,
-                    engine='pyarrow',
-                    compression='snappy',
-                    index=False
+            context.log.info(f"📤 Uploading CSV: {obj.shape} to {config.repo}/{config.branch}/{file_path}")
+            
+            try:
+                # Step 1: Convert DataFrame to CSV and create file-like object
+                csv_content = obj.to_csv(index=False)
+                csv_bytes = csv_content.encode('utf-8')
+                
+                # Step 2: Create IOBase object (file-like)
+                csv_file = io.BytesIO(csv_bytes)
+                
+                context.log.info(f"📊 CSV size: {len(csv_bytes)} bytes")
+                
+                # Step 3: Upload using lakefs_client with IOBase
+                self.client.objects.upload_object(
+                    repository=config.repo,
+                    branch=config.branch,
+                    path=file_path,
+                    content=csv_file  # Pass IOBase object, not bytes
                 )
-        else:
-            with self.fs.open(f"lakefs://{lakefs_path}", "wb") as f:
-                f.write(obj)
+                
+                context.log.info(f"✅ Successfully uploaded to LakeFS!")
+                
+                # Step 4: Simple metadata
+                context.add_output_metadata({
+                    "repo": config.repo,
+                    "branch": config.branch,
+                    "path": file_path,
+                    "file_format": "csv",
+                    "size_bytes": len(csv_bytes),
+                    "shape": str(obj.shape)
+                })
+                
+            except Exception as e:
+                context.log.error(f"❌ Upload failed: {e}")
+                import traceback
+                context.log.error(f"Traceback: {traceback.format_exc()}")
+                raise
 
-        # Add commit information
-        try:
-            branch = self.client.branches.get_branch(
-                repository=self.repo,
-                branch=self.branch
-            )
-            metadata["commit_id"] = branch.commit_id
-            metadata["commit_url"] = f"{self.client.config.host_url}/repositories/{self.repo}/commits/{branch.commit_id}"
-        except Exception as e:
-            context.log.warning(f"Couldn't get commit info: {str(e)}")
-        
-        context.add_output_metadata(metadata)
 
     def load_input(self, context):
-        upstream_path = context.upstream_output.metadata["lakefs_path"]
+        """Simple hardcoded test to check if lakefs_client works"""
         
-        # Enhanced read with error handling
+        # Hardcode the values for testing
+        repo = "spotify-repo"
+        branch = "raw-data"  # Try raw-data first
+        file_path = "versioned_spotify_data_dev.csv"
+        
+        context.log.info(f"🔍 Testing download: {repo}/{branch}/{file_path}")
+        
         try:
-            with self.fs.open(upstream_path, "rb") as f:
-                if upstream_path.endswith(".parquet"):
-                    return pd.read_parquet(f)
-                elif upstream_path.endswith(".csv"):
-                    return pd.read_csv(f)
-                return f.read()
+            # First, list what files actually exist
+            context.log.info("📋 Listing all files in repository...")
+            objects = self.client.objects.list_objects(
+                repository=repo,
+                ref=branch
+            )
+            
+            available_files = [obj.path for obj in objects.results]
+            context.log.info(f"📁 Available files: {available_files}")
+            
+            # Try to find any CSV file
+            csv_files = [f for f in available_files if f.endswith('.csv')]
+            context.log.info(f"📄 CSV files found: {csv_files}")
+            
+            if csv_files:
+                # Use the first CSV file found
+                actual_file = csv_files[0]
+                context.log.info(f"📥 Trying to download: {actual_file}")
+                
+                response = self.client.objects.get_object(
+                    repository=repo,
+                    ref=branch,
+                    path=actual_file
+                )
+                
+                csv_content = response.read().decode('utf-8')
+                context.log.info(f"✅ Downloaded {len(csv_content)} characters")
+                
+                # Convert to DataFrame
+                from io import StringIO
+                df = pd.read_csv(StringIO(csv_content))
+                context.log.info(f"✅ Loaded DataFrame: {df.shape}")
+                
+                return df
+            else:
+                context.log.error("❌ No CSV files found!")
+                raise FileNotFoundError("No CSV files in repository")
+                
         except Exception as e:
-            context.log.error(f"Failed to read {upstream_path}: {str(e)}")
+            context.log.error(f"❌ Error: {e}")
+            
+            # Try different branches
+            for test_branch in ["main", "development", "raw-data"]:
+                try:
+                    context.log.info(f"🔍 Trying branch: {test_branch}")
+                    objects = self.client.objects.list_objects(
+                        repository=repo,
+                        ref=test_branch
+                    )
+                    files = [obj.path for obj in objects.results]
+                    context.log.info(f"Files in {test_branch}: {files[:5]}...")
+                except:
+                    context.log.info(f"Branch {test_branch} not accessible")
+            
             raise
 
-@io_manager(required_resource_keys={"lakefs_fs", "lakefs_client"})
-def lakefs_io_manager(context):
-    return LakeFSIOManager(
+
+
+@io_manager(
+    required_resource_keys={"lakefs_fs", "lakefs_client"},
+    config_schema={
+        "default_repo": str,
+        "default_branch": str,
+    }
+)
+def dynamic_lakefs_io_manager(context):
+    return DynamicLakeFSIOManager(
         fs=context.resources.lakefs_fs,
         client=context.resources.lakefs_client,
-        repo="spotify-repo",
-        branch="main"  # or your default branch
+        default_repo=context.resource_config.get("default_repo", "spotify-repo"),
+        default_branch=context.resource_config.get("default_branch", "main")
     )

@@ -31,7 +31,6 @@ RUN pip list | grep dagster
 COPY ./config/local/dagster.yaml /opt/dagster/dagster_home/dagster.yaml
 RUN chmod +r /opt/dagster/dagster_home/dagster.yaml
 
-
 COPY ./config/workspace.yaml /opt/dagster/app/workspace.yaml
 COPY ml_pipeline/ /opt/dagster/app/ml_pipeline/
 RUN chmod +r /opt/dagster/app/workspace.yaml

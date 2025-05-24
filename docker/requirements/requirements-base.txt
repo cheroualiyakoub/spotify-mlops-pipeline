@@ -11,6 +11,10 @@ seaborn==0.13.0
 lakefs-spec==0.1.4
 
 
+# Dagster core (ADD THESE LINES)
+dagster==1.10.15
+dagster-webserver==1.10.15
+
 # Quality tools
 ruff==0.1.6
 pyright==1.1.338
