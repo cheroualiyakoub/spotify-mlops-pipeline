@@ -1,8 +1,9 @@
 # Fixed Assets Code
-from dagster import asset, OpExecutionContext, get_dagster_logger
+from dagster import asset, OpExecutionContext, get_dagster_logger, Out
 from ml_pipeline.resources.kaggel import kaggle_api
 import os
 import pandas as pd
+from dagster import StaticPartitionsDefinition
 
 @asset(
     io_manager_key="dynamic_lakefs_io",
@@ -106,3 +107,42 @@ def spotify_data_analysis(context: OpExecutionContext, versioned_spotify_data_de
     # Return the dataset (I/O manager will store it in development branch)
     logger.info("Returning dataset via I/O manager...")
     return versioned_spotify_data_dev
+
+
+year_partitions = StaticPartitionsDefinition(
+    [str(year) for year in range(2015, 2024)]  # 2015-2023
+)
+
+
+from dagster import asset, AssetIn, Output
+
+@asset(
+        
+    partitions_def=year_partitions,
+    io_manager_key="dynamic_lakefs_io",
+    deps=["spotify_data_analysis"],
+)
+def yearly_data(context, spotify_data_analysis: pd.DataFrame) -> Output:
+    year = context.partition_key
+    partitioned_df = spotify_data_analysis[spotify_data_analysis["year"] == int(year)]   
+    # context.add_output_metadata({  # ❌ This is too late!
+    #     "lakefs_config": {
+    #         "repo": "spotify-repo",
+    #         "branch": "splited-data",
+    #         "path": f"year={year}/data.csv",
+    #         "commit_message": f"Yearly data for {year}",
+    #         "auto_commit": True
+    #     }
+    # })
+    return Output(
+        value= partitioned_df,
+        metadata={
+            "lakefs_config": {
+                    "repo": "spotify-repo",
+                    "branch": "splited-data",
+                    "path": f"year={year}/data.csv",
+                    "commit_message": f"Yearly data for {year}",
+                    "auto_commit": True
+                }
+        }
+    )

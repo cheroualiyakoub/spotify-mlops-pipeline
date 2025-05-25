@@ -1,6 +1,7 @@
 from dagster import Definitions
 from dagster import repository, job, asset, AssetIn
-from ml_pipeline.assets.data_ingestion import versioned_spotify_data_dev, spotify_data_analysis, spotify_data_cleaned
+
+from ml_pipeline.assets.data_ingestion import versioned_spotify_data_dev, spotify_data_analysis, yearly_data
 # from ml_pipeline.assets.data_ingestion import processed_spotify_data
 
 from ml_pipeline.resources.kaggel import kaggle_api
@@ -18,11 +19,14 @@ from ml_pipeline.io_manager.lakefs_io import  dynamic_lakefs_io_manager
 #     }
 # )
 # In __init__.py
+
+
+
 defs = Definitions(
     assets=[
         versioned_spotify_data_dev,
-        # spotify_data_cleaned,
         spotify_data_analysis,
+        yearly_data,
     ],
     resources={
         "kaggle": kaggle_api,
