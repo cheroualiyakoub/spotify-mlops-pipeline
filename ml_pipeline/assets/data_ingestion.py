@@ -117,32 +117,20 @@ year_partitions = StaticPartitionsDefinition(
 from dagster import asset, AssetIn, Output
 
 @asset(
-        
     partitions_def=year_partitions,
-    io_manager_key="dynamic_lakefs_io",
+    io_manager_key="dynamic_lakefs_io", 
     deps=["spotify_data_analysis"],
-)
-def yearly_data(context, spotify_data_analysis: pd.DataFrame) -> Output:
-    year = context.partition_key
-    partitioned_df = spotify_data_analysis[spotify_data_analysis["year"] == int(year)]   
-    # context.add_output_metadata({  # ❌ This is too late!
-    #     "lakefs_config": {
-    #         "repo": "spotify-repo",
-    #         "branch": "splited-data",
-    #         "path": f"year={year}/data.csv",
-    #         "commit_message": f"Yearly data for {year}",
-    #         "auto_commit": True
-    #     }
-    # })
-    return Output(
-        value= partitioned_df,
-        metadata={
-            "lakefs_config": {
-                    "repo": "spotify-repo",
-                    "branch": "splited-data",
-                    "path": f"year={year}/data.csv",
-                    "commit_message": f"Yearly data for {year}",
-                    "auto_commit": True
-                }
+    metadata={
+        "lakefs_config": {
+            "repo": "spotify-repo",
+            "branch": "splited-data",
+            "path": "year={year}/data.csv",  # Template with {year}
+            "commit_message": "Yearly data for {year}",  # Template
+            "auto_commit": True
         }
-    )
+    }
+)
+def yearly_data(context, spotify_data_analysis: pd.DataFrame) -> pd.DataFrame:
+    year = context.partition_key
+    partitioned_df = spotify_data_analysis[spotify_data_analysis["year"] == int(year)]
+    return partitioned_df 

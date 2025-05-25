@@ -112,11 +112,9 @@ class DynamicLakeFSIOManager(IOManager):
     def handle_output(self, context, obj):
         """Simple CSV upload using custom path from lakefs_config"""
         logger = get_dagster_logger()
+        
+        logger.info(f"Handling output for {context.asset_key}")
 
-        logger.info(f"Handling output for {context.asset_key} with object type {type(obj)}")
-        logger.info("conext metadata: %s", context.metadata.get("lakefs_config"))
-
-        lakefs_config = self._get_config_from_context(context)
 
         if isinstance(obj, pd.DataFrame):
             logger.info(f"📊 DataFrame shape: {obj.shape}")
