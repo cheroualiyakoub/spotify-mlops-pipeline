@@ -8,7 +8,8 @@ from ml_pipeline.resources.kaggel import kaggle_api
 from ml_pipeline.resources.lakefs_client_resource import  lakefs_client_resource
 from ml_pipeline.resources.lakefs_spec_resource import  lakefs_fs_resource
 from ml_pipeline.io_manager.lakefs_io import  dynamic_lakefs_io_manager
-from ml_pipeline.assets.feature_engineering import historical_training_data, available_years, combined_historical_data
+from ml_pipeline.assets.feature_engineering import historical_training_data, available_years, \
+                    combined_historical_data, latest_combined_data_by_push_date
 
 
 # defs = Definitions(
@@ -31,7 +32,8 @@ defs = Definitions(
         yearly_data,
         historical_training_data,
         available_years,
-        combined_historical_data
+        combined_historical_data,
+        latest_combined_data_by_push_date
     ],
     resources={
         "kaggle": kaggle_api,

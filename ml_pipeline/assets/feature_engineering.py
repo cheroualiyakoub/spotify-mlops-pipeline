@@ -1,4 +1,4 @@
-from dagster import asset, get_dagster_logger, MetadataValue
+from dagster import asset, get_dagster_logger, MetadataValue, io_manager
 import pandas as pd
 from ml_pipeline.io_manager.lakefs_io import set_dynamic_lakefs_config
 from dagster import asset, get_dagster_logger, MetadataValue, DynamicPartitionsDefinition
@@ -161,3 +161,108 @@ def combined_historical_data(context, historical_training_data: dict) -> pd.Data
     })
     
     return combined_df
+
+@asset(
+    required_resource_keys={"lakefs_client", "dynamic_lakefs_io"},
+)
+def latest_combined_data_by_push_date(context) -> pd.DataFrame:
+    """Download the most recently pushed combined dataset from LakeFS"""
+    logger = get_dagster_logger()
+    
+    try:
+        # List objects in combined directory with metadata
+        response = context.resources.lakefs_client.objects.list_objects(
+            repository="spotify-repo",
+            ref="development",
+            prefix="data/combined/",
+            amount=100
+        )
+        
+        # Debug: Check what attributes are available
+        if response.results:
+            sample_obj = response.results[0]
+            logger.info(f"🔍 Available attributes: {dir(sample_obj)}")
+            logger.info(f"🔍 Sample object: {sample_obj}")
+        
+        # Filter for combined data files and find the most recent
+        combined_files = []
+        for obj in response.results:
+            if 'combined_data_years_' in obj.path and obj.path.endswith('.csv'):
+                # Check different possible time attributes
+                time_attr = None
+                if hasattr(obj, 'mtime'):
+                    time_attr = obj.mtime
+                elif hasattr(obj, 'last_modified'):
+                    time_attr = obj.last_modified
+                elif hasattr(obj, 'modified_time'):
+                    time_attr = obj.modified_time
+                elif hasattr(obj, 'creation_time'):
+                    time_attr = obj.creation_time
+                elif hasattr(obj, 'timestamp'):
+                    time_attr = obj.timestamp
+                else:
+                    # Fallback: use the filename to determine recency
+                    logger.warning(f"No time attribute found for {obj.path}, using filename for ordering")
+                    time_attr = obj.path  # Will sort alphabetically
+                
+                combined_files.append({
+                    'path': obj.path,
+                    'time_reference': time_attr,
+                    'size': getattr(obj, 'size_bytes', getattr(obj, 'size', 0))
+                })
+        
+        if not combined_files:
+            raise ValueError("No combined data files found in data/combined/")
+        
+        # Sort by time reference (or filename if no time available)
+        try:
+            # Try to sort by actual time
+            latest_file = max(combined_files, key=lambda x: x['time_reference'])
+        except TypeError:
+            # If time comparison fails, sort by filename (most recent pattern)
+            logger.warning("Could not sort by time, using filename pattern")
+            latest_file = max(combined_files, key=lambda x: x['path'])
+        
+        logger.info(f"Found {len(combined_files)} combined files")
+        logger.info(f"Latest file: {latest_file['path']}")
+        logger.info(f"Time reference: {latest_file['time_reference']}")
+        
+        # Log all files for debugging
+        for file_info in sorted(combined_files, key=lambda x: str(x['time_reference']), reverse=True):
+            logger.info(f"  📄 {file_info['path']} - {file_info['time_reference']}")
+        
+        # Download the latest file
+        lakefs_config = {
+            "repo": "spotify-repo",
+            "branch": "development",
+            "path": latest_file['path']
+        }
+        
+        df = context.resources.dynamic_lakefs_io.load_input(
+            context,
+            lakefs_config=lakefs_config
+        )
+        
+        logger.info(f"Successfully loaded latest combined data: {df.shape}")
+        logger.info("✅ Data will be kept in memory, not uploaded back to LakeFS")
+        
+        # Extract years from filename for metadata
+        import re
+        years_match = re.search(r'combined_data_years_(.+)\.csv', latest_file['path'])
+        years_string = years_match.group(1) if years_match else "unknown"
+        
+        context.add_output_metadata({
+            "source_file": MetadataValue.text(latest_file['path']),
+            "time_reference": MetadataValue.text(str(latest_file['time_reference'])),
+            "total_rows": MetadataValue.int(len(df)),
+            "total_columns": MetadataValue.int(len(df.columns)),
+            "years_string": MetadataValue.text(years_string),
+            "storage_method": MetadataValue.text("memory_only"),
+            "total_files_available": MetadataValue.int(len(combined_files))
+        })
+        
+        return df
+        
+    except Exception as e:
+        logger.error(f"Failed to load latest combined data: {str(e)}")
+        raise
