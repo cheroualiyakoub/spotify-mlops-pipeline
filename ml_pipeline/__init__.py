@@ -8,6 +8,8 @@ from ml_pipeline.resources.kaggel import kaggle_api
 from ml_pipeline.resources.lakefs_client_resource import  lakefs_client_resource
 from ml_pipeline.resources.lakefs_spec_resource import  lakefs_fs_resource
 from ml_pipeline.io_manager.lakefs_io import  dynamic_lakefs_io_manager
+from ml_pipeline.assets.feature_engineering import historical_training_data, available_years, combined_historical_data
+
 
 # defs = Definitions(
 #     assets=[versioned_spotify_data, processed_spotify_data],
@@ -27,6 +29,9 @@ defs = Definitions(
         versioned_spotify_data_dev,
         spotify_data_analysis,
         yearly_data,
+        historical_training_data,
+        available_years,
+        combined_historical_data
     ],
     resources={
         "kaggle": kaggle_api,

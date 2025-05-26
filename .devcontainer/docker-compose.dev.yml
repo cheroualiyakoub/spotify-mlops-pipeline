@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  dev:
+    build:
+      context: ..
+      dockerfile: docker/base/Dockerfile.spotify_base
+    volumes:
+      - ..:/workspace:cached
+      - ~/.gitconfig:/root/.gitconfig
+    command: sleep infinity
+    environment:
+      - PYTHONPATH=/workspace
+      - DAGSTER_HOME=/workspace/config/local/dagster
+    networks:
+      - ml-network

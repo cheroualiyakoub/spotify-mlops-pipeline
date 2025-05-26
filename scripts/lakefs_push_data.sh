@@ -27,7 +27,7 @@ EOF"
 REPO="spotify-repo"
 SRC_BRANCH="splited-data"
 DST_BRANCH="development"
-FILE_PATH="year=2001/data.csv"
+FILE_PATH="year=2002/data.csv"
 
 echo "Creating temporary directory..."
 docker exec lakefs mkdir -p /tmp/lakefs_transfer

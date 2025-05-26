@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from lakefs_client.exceptions import NotFoundException
 from lakefs_client.models import BranchCreation
 import io
+from io import StringIO
 
 @dataclass
 class LakeFSConfig:
@@ -132,7 +133,7 @@ class DynamicLakeFSIOManager(IOManager):
             logger.info(f"📊 DataFrame shape: {obj.shape}")
             config = self._get_config_from_context(context)
             logger.info(f"Using LakeFS config: {config}")
-            
+
             self._ensure_branch_exists(
                 context=context,   
                 repository=config.repo,
@@ -169,53 +170,50 @@ class DynamicLakeFSIOManager(IOManager):
                 "size_bytes": len(csv_bytes),
                 "shape": list(obj.shape)
             })
-
-    def load_input(self, context):
-        """Simple CSV download using upstream metadata only"""
-        
+    
+    def load_input(self, context, lakefs_config=None):
+        """Load input data from LakeFS with support for both upstream and explicit config"""
         logger = get_dagster_logger()
-
-        logger.info(f"Loading input for {context.asset_key} from upstream output")
-        
-        upstream_metadata = context.upstream_output.metadata
-        logger.info(f"Upstream metadata: {upstream_metadata}")
-
-        # Get file info from upstream metadata (stored by handle_output)
-        lakef_config = upstream_metadata.get("lakefs_config")
-        repo = lakef_config.get("repo", self.default_repo)
-        branch = lakef_config.get("branch", self.default_branch)
-        file_path = lakef_config.get("path")
-        
-        if not file_path:
-            # Fallback: construct from asset name
-            upstream_asset_key = context.upstream_output.asset_key
-            file_path = f"{'/'.join(upstream_asset_key.path)}.csv"
-        
-        context.log.info(f"📥 Loading from upstream metadata: {repo}/{branch}/{file_path}")
         
         try:
+            # First try explicit config if provided
+            if lakefs_config:
+                logger.info(f"Using explicit LakeFS config for {context.asset_key}")
+                config = (
+                    lakefs_config if isinstance(lakefs_config, LakeFSConfig)
+                    else LakeFSConfig(
+                        repo=lakefs_config.get('repo', self.default_repo),
+                        branch=lakefs_config.get('branch', self.default_branch),
+                        path=lakefs_config.get('path')
+                    )
+                )
+            else:
+                # Fallback to upstream metadata
+                logger.info(f"Loading input from upstream metadata for {context.asset_key}")
+                upstream_metadata = context.upstream_output.metadata
+                lakefs_metadata = upstream_metadata.get("lakefs_config", {})
+                config = LakeFSConfig(
+                    repo=lakefs_metadata.get('repo', self.default_repo),
+                    branch=lakefs_metadata.get('branch', self.default_branch),
+                    path=lakefs_metadata.get('path')
+                )
+
+            logger.info(f"Loading from LakeFS: {config.repo}/{config.branch}/{config.path}")
+            
             response = self.client.objects.get_object(
-                repository=repo,
-                ref=branch,
-                path=file_path
+                repository=config.repo,
+                ref=config.branch,
+                path=config.path
             )
             
             csv_content = response.read().decode('utf-8')
-            context.log.info(f"✅ Downloaded {len(csv_content)} characters")
-            
-            from io import StringIO
             df = pd.read_csv(StringIO(csv_content))
-            context.log.info(f"✅ Loaded DataFrame: {df.shape}")
+            logger.info(f"✅ Loaded DataFrame: {df.shape}")
             
             return df
             
         except Exception as e:
-            context.log.error(f"❌ Download failed from {repo}/{branch}/{file_path}: {e}")
-            
-            # Debug: show what metadata we have
-            context.log.info(f"🔍 Available upstream metadata: {list(upstream_metadata.keys())}")
-            context.log.info(f"🔍 Upstream metadata values: {upstream_metadata}")
-            
+            logger.error(f"❌ Failed to load data: {str(e)}")
             raise
 
 @io_manager(
