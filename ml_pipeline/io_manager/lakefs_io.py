@@ -85,19 +85,32 @@ class DynamicLakeFSIOManager(IOManager):
 
         final_config = {**static_config, **runtime_config}
 
-        if hasattr(context, 'partition_key') and context.partition_key:
-            partition_key = context.partition_key
-
-            if 'path' in final_config:
-                final_config['path'] = final_config['path'].format(
-                    partition_key=partition_key,
-                    year=partition_key
-                )
-            if 'commit_message' in final_config:
-                final_config['commit_message'] = final_config['commit_message'].format(
-                    partition_key=partition_key,
-                    year=partition_key
-                )
+        # SAFE partition handling - only for partitioned assets
+        try:
+            # Check if asset is partitioned and has a partition key
+            if hasattr(context, 'partition_key'):
+                partition_key = context.partition_key  # This will throw if not partitioned
+                get_dagster_logger().info(f"Asset is partitioned with key: {partition_key}")
+                
+                # Apply partition interpolation to path
+                if 'path' in final_config and '{' in str(final_config['path']):
+                    final_config['path'] = final_config['path'].format(
+                        partition_key=partition_key,
+                        year=partition_key
+                    )
+                    get_dagster_logger().info(f"Interpolated path: {final_config['path']}")
+                
+                # Apply partition interpolation to commit message
+                if 'commit_message' in final_config and '{' in str(final_config['commit_message']):
+                    final_config['commit_message'] = final_config['commit_message'].format(
+                        partition_key=partition_key,
+                        year=partition_key
+                    )
+                    get_dagster_logger().info(f"Interpolated commit message: {final_config['commit_message']}")
+                    
+        except Exception as e:
+            # Asset is not partitioned - use static config as-is
+            get_dagster_logger().info(f"Asset {context.asset_key} is not partitioned, using static config")
 
         return LakeFSConfig(
             repo=final_config.get('repo', self.default_repo),
@@ -107,7 +120,6 @@ class DynamicLakeFSIOManager(IOManager):
             auto_commit=final_config.get('auto_commit', False),
             metadata=final_config.get('metadata', {})
         )
-
 
     def handle_output(self, context, obj):
         """Simple CSV upload using custom path from lakefs_config"""
@@ -205,7 +217,6 @@ class DynamicLakeFSIOManager(IOManager):
             context.log.info(f"🔍 Upstream metadata values: {upstream_metadata}")
             
             raise
-
 
 @io_manager(
     required_resource_keys={"lakefs_fs", "lakefs_client"},

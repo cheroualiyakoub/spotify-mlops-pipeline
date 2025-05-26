@@ -1,3 +1,2 @@
 
-lakefs-client>=0.91.0
-python-dotenv>=1.0.0
+

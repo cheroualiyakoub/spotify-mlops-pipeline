@@ -45,7 +45,6 @@ def versioned_spotify_data_dev(context: OpExecutionContext):
     logger.info(f"Data loaded successfully. Shape: {df.shape}, Columns: {list(df.columns)}")
     return pd.read_csv(main_file)
 
-
 @asset(
     io_manager_key="dynamic_lakefs_io",
     metadata={
@@ -108,13 +107,9 @@ def spotify_data_analysis(context: OpExecutionContext, versioned_spotify_data_de
     logger.info("Returning dataset via I/O manager...")
     return versioned_spotify_data_dev
 
-
 year_partitions = StaticPartitionsDefinition(
-    [str(year) for year in range(2015, 2024)]  # 2015-2023
+    [str(year) for year in range(2000, 2024)]  # 2015-2023
 )
-
-
-from dagster import asset, AssetIn, Output
 
 @asset(
     partitions_def=year_partitions,
