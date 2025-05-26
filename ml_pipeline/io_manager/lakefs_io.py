@@ -10,6 +10,27 @@ from lakefs_client.models import BranchCreation
 import io
 from io import StringIO
 
+
+_DYNAMIC_CONFIG_REGISTRY = {}
+
+def set_dynamic_lakefs_config(asset_key: str, config: dict):
+    """Set dynamic config for an asset"""
+    _DYNAMIC_CONFIG_REGISTRY[asset_key] = config
+    get_dagster_logger().info(f"📝 Registered dynamic config for {asset_key}: {config}")
+
+def get_dynamic_lakefs_config(asset_key: str) -> dict:
+    """Get dynamic config for an asset"""
+    config = _DYNAMIC_CONFIG_REGISTRY.get(asset_key, {})
+    get_dagster_logger().info(f"📖 Retrieved dynamic config for {asset_key}: {config}")
+    return config
+
+def clear_dynamic_lakefs_config(asset_key: str):
+    """Clear dynamic config for an asset"""
+    if asset_key in _DYNAMIC_CONFIG_REGISTRY:
+        del _DYNAMIC_CONFIG_REGISTRY[asset_key]
+        get_dagster_logger().info(f"🗑️ Cleared dynamic config for {asset_key}")
+
+
 @dataclass
 class LakeFSConfig:
     """Configuration for LakeFS operations"""
@@ -81,6 +102,8 @@ class DynamicLakeFSIOManager(IOManager):
         if hasattr(context, 'definition_metadata') and context.definition_metadata:
             static_config = context.definition_metadata.get('lakefs_config', {})
 
+        get_dagster_logger().info(f"runtime_config config: {runtime_config}")
+
         get_dagster_logger().info(f"Static LakeFS config: {static_config}")
         get_dagster_logger().info(f"Runtime LakeFS config: {runtime_config}")
 
@@ -128,10 +151,19 @@ class DynamicLakeFSIOManager(IOManager):
         
         logger.info(f"Handling output for {context.asset_key}")
 
-
         if isinstance(obj, pd.DataFrame):
             logger.info(f"📊 DataFrame shape: {obj.shape}")
-            config = self._get_config_from_context(context)
+            
+            # NEW: Get dynamic config from registry
+            asset_key_str = str(context.asset_key)
+            runtime_config = get_dynamic_lakefs_config(asset_key_str)
+            
+            if runtime_config:
+                logger.info(f"🚀 Found dynamic config in registry: {runtime_config}")
+            else:
+                logger.warning("⚠️ No dynamic config found in registry")
+
+            config = self._get_config_from_context(context, runtime_config)
             logger.info(f"Using LakeFS config: {config}")
 
             self._ensure_branch_exists(
@@ -161,6 +193,7 @@ class DynamicLakeFSIOManager(IOManager):
             )
             
             context.log.info(f"✅ Upload successful!")
+            clear_dynamic_lakefs_config(asset_key_str)
             
             context.add_output_metadata({
                 "repo": config.repo,
