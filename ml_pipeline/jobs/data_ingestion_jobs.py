@@ -1,5 +1,5 @@
 from dagster import job
-from ml_pipeline.assets.data_ingestion import versioned_spotify_data_dev, spotify_data_analysis
+from ml_pipeline.assets.data_ingestion import raw_kaggle_data, spotify_data_analysis
 # from ml_pipeline.assets.data_ingestion import processed_spotify_data
 from ml_pipeline.resources.kaggel import kaggle_api
 from ml_pipeline.io_manager.lakefs_io import dynamic_lakefs_io_manager
@@ -15,7 +15,7 @@ from ml_pipeline.resources.lakefs_spec_resource import lakefs_fs_resource
     }
 )
 def ingest_spotify_job():
-    versioned_spotify_data_dev()
+    raw_kaggle_data()
     spotify_data_analysis()
 
 

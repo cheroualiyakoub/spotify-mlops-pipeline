@@ -18,7 +18,7 @@ from dagster import StaticPartitionsDefinition
         }
     }
 )
-def versioned_spotify_data_dev(context: OpExecutionContext):
+def raw_kaggle_data(context: OpExecutionContext):
     """Asset that downloads raw data from Kaggle"""
     
     logger = get_dagster_logger()
@@ -57,32 +57,32 @@ def versioned_spotify_data_dev(context: OpExecutionContext):
         }
     }
 )
-def spotify_data_analysis(context: OpExecutionContext, versioned_spotify_data_dev: pd.DataFrame):
+def spotify_data_analysis(context: OpExecutionContext, raw_kaggle_data: pd.DataFrame):
     """Asset that automatically loads data via I/O manager and returns it with metadata"""
     
     logger = get_dagster_logger()
     
     # The I/O manager automatically calls load_input() and passes the DataFrame here
-    logger.info(f"✅ Received data via I/O manager: {versioned_spotify_data_dev.shape}")
-    logger.info(f"Columns: {list(versioned_spotify_data_dev.columns)[:5]}...")
+    logger.info(f"✅ Received data via I/O manager: {raw_kaggle_data.shape}")
+    logger.info(f"Columns: {list(raw_kaggle_data.columns)[:5]}...")
     
     # Generate metadata about the loaded dataset
     data_metadata = {
         "dataset_info": {
-            "total_rows": len(versioned_spotify_data_dev),
-            "total_columns": len(versioned_spotify_data_dev.columns),
-            "column_names": list(versioned_spotify_data_dev.columns),
-            "memory_usage_mb": round(versioned_spotify_data_dev.memory_usage(deep=True).sum() / 1024 / 1024, 2)
+            "total_rows": len(raw_kaggle_data),
+            "total_columns": len(raw_kaggle_data.columns),
+            "column_names": list(raw_kaggle_data.columns),
+            "memory_usage_mb": round(raw_kaggle_data.memory_usage(deep=True).sum() / 1024 / 1024, 2)
         },
         "data_quality": {
-            "missing_values_per_column": versioned_spotify_data_dev.isnull().sum().to_dict(),
-            "duplicate_rows": int(versioned_spotify_data_dev.duplicated().sum()),
-            "completeness_percentage": round((1 - versioned_spotify_data_dev.isnull().sum().sum() / versioned_spotify_data_dev.size) * 100, 2)
+            "missing_values_per_column": raw_kaggle_data.isnull().sum().to_dict(),
+            "duplicate_rows": int(raw_kaggle_data.duplicated().sum()),
+            "completeness_percentage": round((1 - raw_kaggle_data.isnull().sum().sum() / raw_kaggle_data.size) * 100, 2)
         },
         "analysis_metadata": {
             "analysis_timestamp": pd.Timestamp.now().isoformat(),
             "loaded_via": "lakefs_io_manager",
-            "source_asset": "versioned_spotify_data_dev"
+            "source_asset": "raw_kaggle_data"
         }
     }
     
@@ -95,8 +95,8 @@ def spotify_data_analysis(context: OpExecutionContext, versioned_spotify_data_de
     
     # Add metadata to Dagster context
     context.add_output_metadata({
-        "dataset_shape": list(versioned_spotify_data_dev.shape),
-        "columns": list(versioned_spotify_data_dev.columns),
+        "dataset_shape": list(raw_kaggle_data.shape),
+        "columns": list(raw_kaggle_data.columns),
         "data_quality_score": float(data_metadata['data_quality']['completeness_percentage']),
         "memory_usage_mb": float(data_metadata['dataset_info']['memory_usage_mb']),
         "loaded_via": "lakefs_io_manager",
@@ -105,7 +105,7 @@ def spotify_data_analysis(context: OpExecutionContext, versioned_spotify_data_de
     
     # Return the dataset (I/O manager will store it in development branch)
     logger.info("Returning dataset via I/O manager...")
-    return versioned_spotify_data_dev
+    return raw_kaggle_data
 
 year_partitions = StaticPartitionsDefinition(
     [str(year) for year in range(2000, 2024)]  # 2015-2023

@@ -16,7 +16,7 @@ flowchart TD
 
     subgraph Orchestration & Pipeline
         C1[Dagster Assets<br>data_ingestion.py]
-        C2[Dagster Assets<br>feature_engineering.py]
+        C2[Dagster Assets<br>data_selection.py]
         C3[Dagster Assets<br>model_training.py]
         C4[Dagster Assets<br>model_evaluation.py]
         C5[LakeFS IO Manager]
