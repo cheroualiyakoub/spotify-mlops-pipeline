@@ -8,9 +8,9 @@ from sklearn.model_selection import train_test_split
     group_name="preprocessing",
     deps=["combined_data"],
     outs={
-        "train_data": AssetOut(io_manager_key="custom_memory_io"),
-        "test_data": AssetOut(io_manager_key="custom_memory_io"),
-        "split_metadata": AssetOut(io_manager_key="custom_memory_io")
+        "train_data": AssetOut(io_manager_key="file_io_manager"),
+        "test_data": AssetOut(io_manager_key="file_io_manager"),
+        "split_metadata": AssetOut(io_manager_key="file_io_manager")
     },
     compute_kind="pandas",
 )

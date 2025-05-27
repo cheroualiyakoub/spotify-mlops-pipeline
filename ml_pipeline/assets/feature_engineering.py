@@ -20,11 +20,11 @@ from ml_pipeline.preprocessing.string_toInt_encoder import SafeOneHotEncoder
         "train_data": AssetIn(key="train_data")
     },
     outs={
-        "preprocessor": AssetOut(io_manager_key="custom_memory_io"),
-        "X_train_processed": AssetOut(io_manager_key="custom_memory_io"),
-        "y_train": AssetOut(io_manager_key="custom_memory_io"),
-        "X_test_processed": AssetOut(io_manager_key="custom_memory_io"),
-        "y_test": AssetOut(io_manager_key="custom_memory_io")
+        "preprocessor": AssetOut(io_manager_key="file_io_manager"),
+        "X_train_processed": AssetOut(io_manager_key="file_io_manager"),
+        "y_train": AssetOut(io_manager_key="file_io_manager"),
+        "X_test_processed": AssetOut(io_manager_key="file_io_manager"),
+        "y_test": AssetOut(io_manager_key="file_io_manager")
     },
     compute_kind="sklearn",
 )
