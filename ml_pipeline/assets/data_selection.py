@@ -3,6 +3,7 @@ import pandas as pd
 import re
 
 @asset(
+    group_name="preprocessing",
     required_resource_keys={"lakefs_client", "year_selector"}
 )
 def selected_years(context) -> list:
@@ -23,6 +24,7 @@ def selected_years(context) -> list:
     return valid_years
 
 @asset(
+    group_name="preprocessing",
     deps=[selected_years],
     required_resource_keys={"dynamic_lakefs_io"}
 )
