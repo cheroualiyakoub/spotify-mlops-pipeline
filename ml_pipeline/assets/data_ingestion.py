@@ -6,6 +6,7 @@ import pandas as pd
 from dagster import StaticPartitionsDefinition
 
 @asset(
+    group_name="data_ingestion",
     io_manager_key="dynamic_lakefs_io",
     required_resource_keys={"kaggle"},
     metadata={
@@ -46,6 +47,7 @@ def raw_kaggle_data(context: OpExecutionContext):
     return pd.read_csv(main_file)
 
 @asset(
+    group_name="data_ingestion",
     io_manager_key="dynamic_lakefs_io",
     metadata={
         "lakefs_config": {
@@ -112,6 +114,7 @@ year_partitions = StaticPartitionsDefinition(
 )
 
 @asset(
+    group_name="data_ingestion",
     partitions_def=year_partitions,
     io_manager_key="dynamic_lakefs_io", 
     deps=["spotify_data_analysis"],

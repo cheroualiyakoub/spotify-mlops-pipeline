@@ -15,6 +15,11 @@ from ml_pipeline.assets.split_train_test import train_test_data
 from ml_pipeline.resources.year_selector_resource import year_selector
 from ml_pipeline.assets.feature_engineering import base_preprocessor
 
+from ml_pipeline.assets.model_training import random_forest_train, random_forest_test 
+from ml_pipeline.assets.model_training import xgboost_train, xgboost_test 
+from ml_pipeline.assets.model_training import gradient_boosting_train, gradient_boosting_test 
+from ml_pipeline.assets.model_training import ridge_train, ridge_test 
+
 
 defs = Definitions(
     assets=[
@@ -25,6 +30,14 @@ defs = Definitions(
         combined_data,
         train_test_data,
         base_preprocessor,
+        random_forest_train,
+        random_forest_test,
+        xgboost_train,
+        xgboost_test,
+        gradient_boosting_train,
+        gradient_boosting_test,
+        ridge_train,
+        ridge_test,
     ],
     resources={
         "kaggle": kaggle_api,
