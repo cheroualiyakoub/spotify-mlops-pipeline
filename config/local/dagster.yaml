@@ -8,6 +8,13 @@ storage:
       db_name: dagster
       port: 5432
 
+# execution:
+#   config:
+#     multiprocess:
+#       max_concurrent: 1
+#     # Use in_process executor instead
+#     in_process: {}
+
 run_coordinator:
   module: dagster._core.run_coordinator
   class: QueuedRunCoordinator
@@ -16,6 +23,9 @@ run_coordinator:
 run_launcher:
   module: dagster._core.launcher
   class: DefaultRunLauncher
+  # config:
+  #   # Force single process execution
+  #   multiprocess_executor_max_concurrent: 1
 
 telemetry:
   enabled: false

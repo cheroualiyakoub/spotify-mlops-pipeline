@@ -10,9 +10,27 @@ RUN apt-get update && \
     build-essential \
     git \
     libpq-dev \
-    curl && \
+    curl \
+    vim \
+    procps \
+    lsof \
+    netcat-openbsd && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+
+# Create and set permissions for artifact directories with recursive chmod
+RUN mkdir -p /mlflow/artifacts && \
+    mkdir -p /mlflow/models && \
+    chmod -R 777 /mlflow && \
+    chmod -R 777 /app
+
+# Add entry script to set permissions on startup
+RUN echo '#!/bin/bash\n\
+chmod -R 777 /mlflow\n\
+chmod -R 777 /mlflow/artifacts\n\
+exec "$@"\n' > /entrypoint.sh && \
+    chmod +x /entrypoint.sh
 
 # Copy and install requirements
 COPY docker/requirements/requirements-mlflow.txt .
@@ -21,11 +39,17 @@ RUN pip install --no-cache-dir -r requirements-mlflow.txt
 # Install PostgreSQL dependencies
 RUN pip install --no-cache-dir psycopg2-binary==2.9.9
 
-# Create directory for MLflow artifacts
-RUN mkdir -p /mlflow/artifacts
+RUN pip install boto3
+
+# Add debugging script
+RUN echo '#!/bin/bash\necho "===== MLflow Directory Structure ====="\nfind /mlflow -type d | sort\necho "===== MLflow Artifact Files ====="\nfind /mlflow/artifacts -type f | sort\n' > /app/check_artifacts.sh && \
+    chmod +x /app/check_artifacts.sh
 
 # Expose port for MLflow UI
 EXPOSE 5000
+
+# Set entry point to apply permissions at container start
+ENTRYPOINT ["/entrypoint.sh"]
 
 # Default command
 CMD ["mlflow", "server", "--host", "0.0.0.0"]

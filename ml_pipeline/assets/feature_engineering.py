@@ -33,9 +33,6 @@ def base_preprocessor(context, train_data, test_data):
 
     logger = get_dagster_logger()
 
-    train_data = train_data.drop(columns=['Unnamed: 0'], errors='ignore')
-    test_data = test_data.drop(columns=['Unnamed: 0'], errors='ignore')
-
     X_train = train_data.drop(columns=['popularity'], errors='ignore')
     y_train = train_data['popularity']
 

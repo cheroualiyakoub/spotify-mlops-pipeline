@@ -1,19 +1,17 @@
 from dagster import resource, Field
 
-# {
-# "resources":
-#   {
-#     "year_selector":
-#     {
-#         "config":
-#           {
-#             "selected_years":['2000', '2001']
-#           }
-#     }  
-#   }
-# }
-
-
+{
+"resources":
+  {
+    "year_selector":
+    {
+        "config":
+          {
+            "selected_years":['2000', '2001']
+          }
+    }  
+  }
+}
 
 @resource(
     config_schema={

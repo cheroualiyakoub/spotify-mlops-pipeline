@@ -4,6 +4,7 @@ from dagster import repository, job, asset, AssetIn
 from ml_pipeline.assets.data_ingestion import raw_kaggle_data, spotify_data_analysis, yearly_data
 # from ml_pipeline.assets.data_ingestion import processed_spotify_data
 
+from ml_pipeline.resources.mlflow_resource import MLflowTrackingResource
 from ml_pipeline.resources.kaggel import kaggle_api
 from ml_pipeline.resources.lakefs_client_resource import lakefs_client_resource
 from ml_pipeline.resources.lakefs_spec_resource import lakefs_fs_resource
@@ -15,10 +16,10 @@ from ml_pipeline.assets.split_train_test import train_test_data
 from ml_pipeline.resources.year_selector_resource import year_selector
 from ml_pipeline.assets.feature_engineering import base_preprocessor
 
-from ml_pipeline.assets.model_training import random_forest_train, random_forest_test 
-from ml_pipeline.assets.model_training import xgboost_train, xgboost_test 
-from ml_pipeline.assets.model_training import gradient_boosting_train, gradient_boosting_test 
-from ml_pipeline.assets.model_training import ridge_train, ridge_test 
+# from ml_pipeline.assets.model_training import random_forest_train, random_forest_test 
+from ml_pipeline.assets.model_training import enhanced_debug_mlflow, xgboost_train, xgboost_test
+# from ml_pipeline.assets.model_training import gradient_boosting_train, gradient_boosting_test 
+# from ml_pipeline.assets.model_training import ridge_train, ridge_test
 
 
 defs = Definitions(
@@ -30,14 +31,16 @@ defs = Definitions(
         combined_data,
         train_test_data,
         base_preprocessor,
-        random_forest_train,
-        random_forest_test,
+        
+        # random_forest_train,
+        # random_forest_test,
         xgboost_train,
         xgboost_test,
-        gradient_boosting_train,
-        gradient_boosting_test,
-        ridge_train,
-        ridge_test,
+        enhanced_debug_mlflow,
+        # gradient_boosting_train,
+        # gradient_boosting_test,
+        # ridge_train,
+        # ridge_test,
     ],
     resources={
         "kaggle": kaggle_api,
@@ -49,7 +52,13 @@ defs = Definitions(
             "default_repo": "spotify-repo",
             "default_branch": "main"
         }),
-        "year_selector": year_selector
+        "year_selector": year_selector,
+         "mlflow_tracking": MLflowTrackingResource(  # ADD THIS BLOCK
+            tracking_uri="http://mlflow:5000",
+            base_experiment_name="spotify_popularity_prediction",
+            enable_autolog=True,
+        )
+        
     },
 )
 

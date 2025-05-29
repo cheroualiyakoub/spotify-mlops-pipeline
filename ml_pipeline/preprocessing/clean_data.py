@@ -2,7 +2,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 
 class DataCleaner(BaseEstimator, TransformerMixin):
     def __init__(self):
-        self.cols_to_drop = ['track_id', 'track_name', 'artist_name']
+        self.cols_to_drop = ['track_id', 'track_name', 'artist_name', 'Unnamed: 0']
         
     def fit(self, X, y=None):
       
@@ -16,4 +16,4 @@ class DataCleaner(BaseEstimator, TransformerMixin):
         return df_clean.drop(columns=self.cols_to_drop, errors='ignore')
     
     def __reduce__(self):
-        return (self.__class__, ())  # Add this for pickling
+        return (self.__class__, ()) 
